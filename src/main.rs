@@ -54,6 +54,7 @@ static VERBOSE: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
 /// Workaround for `ExitStatusError` being unstable
 #[derive(Debug)]
 struct CalledProcessError {
+    /// The subprocess's exit code (or `None` if killed by a POSIX signal)
     pub code: Option<i32>,
 }
 
@@ -71,8 +72,15 @@ impl Error for CalledProcessError {}
 macro_rules! check_call {
     ($cmd:expr) => {
         (|| {
-            let status = $cmd.status()?;
+            let (stdout, stderr) = if *(VERBOSE.lock().expect("unwrap VERBOSE")) {
+                (std::process::Stdio::inherit(), std::process::Stdio::inherit())
+            } else {
+                (std::process::Stdio::null(), std::process::Stdio::null())
+            };
+
+            let status = $cmd.stdout(stdout).stderr(stderr).status()?;
             if !status.success() {
+                // TODO: Nicer output
                 return Err(CalledProcessError { code: status.code() }.into());
             }
             Ok::<std::process::ExitStatus, Box<dyn Error>>(status)
@@ -99,10 +107,7 @@ impl UnholdGuard {
     /// Construct a new guard and immediately un-hold the given packages
     pub fn new(names: Vec<String>) -> Result<Self, Box<dyn Error>> {
         verbose_eprintln!("Un-holding: {}", names.join(" "));
-        check_call!(Command::new(APT_MARK_PATH)
-            .arg("unhold")
-            .arg("-qq") // TODO: omit if log-level is appropriate
-            .args(&names))?;
+        check_call!(Command::new(APT_MARK_PATH).arg("unhold").args(&names))?;
         Ok(Self { names })
     }
     /// Add more entries to the list of things to hold when the guard drops
@@ -166,10 +171,7 @@ fn get_nvidia_packages() -> Result<BTreeMap<String, String>, Box<dyn Error>> {
 fn do_update(mark_only: bool) -> Result<bool, Box<dyn Error>> {
     if !mark_only {
         verbose_eprintln!("Updating package list...");
-        check_call!(
-            // TODO: omit -q if log-level is appropriate
-            Command::new(APT_GET_PATH).arg("update").arg("-q")
-        )?;
+        check_call!(Command::new(APT_GET_PATH).arg("update"))?;
     }
 
     verbose_eprintln!("Getting list of eligible packages");
@@ -182,10 +184,7 @@ fn do_update(mark_only: bool) -> Result<bool, Box<dyn Error>> {
     }
 
     verbose_eprintln!("Updating all packages list...");
-    check_call!(
-        // TODO: omit -q if log-level is appropriate
-        Command::new(APT_GET_PATH).arg("dist-upgrade").arg("-q")
-    )?;
+    check_call!(Command::new(APT_GET_PATH).arg("dist-upgrade"))?;
 
     // Update the list of packages to re-hold and report whether a kernel module reload is needed
     verbose_eprintln!("Getting updated list of eligible packages");
