@@ -47,10 +47,6 @@ const MODPROBE_PATH: &'static str = "/sbin/modprobe";
 /// Single definition of the kernel module name to load and unload
 const NVIDIA_KMOD_NAME: &'static str = "nvidia";
 
-/// Basic reinvention of logging levels to avoid external crate dependencies on
-/// something that's going to run as `root` and invoke APT.
-static VERBOSE: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
-
 /// Workaround for `ExitStatusError` being unstable
 #[derive(Debug)]
 struct CalledProcessError {
@@ -72,13 +68,7 @@ impl Error for CalledProcessError {}
 macro_rules! check_call {
     ($cmd:expr) => {
         (|| {
-            let (stdout, stderr) = if *(VERBOSE.lock().expect("unwrap VERBOSE")) {
-                (std::process::Stdio::inherit(), std::process::Stdio::inherit())
-            } else {
-                (std::process::Stdio::null(), std::process::Stdio::null())
-            };
-
-            let status = $cmd.stdout(stdout).stderr(stderr).status()?;
+            let status = $cmd.status()?;
             if !status.success() {
                 // TODO: Nicer output
                 return Err(CalledProcessError { code: status.code() }.into());
@@ -86,15 +76,6 @@ macro_rules! check_call {
             Ok::<std::process::ExitStatus, Box<dyn Error>>(status)
         })()
     };
-}
-
-/// Helper to [`eprintln!`] a message conditional on [`VERBOSE`]
-macro_rules! verbose_eprintln {
-    ($($arg:expr),*) => {
-        if *(VERBOSE.lock().expect("unwrap VERBOSE")) {
-            eprintln!($($arg),*);
-        }
-    }
 }
 
 /// An RAII-based mechanism for temporarily `apt-mark unhold`-ing packages
@@ -106,8 +87,8 @@ struct UnholdGuard {
 impl UnholdGuard {
     /// Construct a new guard and immediately un-hold the given packages
     pub fn new(names: Vec<String>) -> Result<Self, Box<dyn Error>> {
-        verbose_eprintln!("Un-holding: {}", names.join(" "));
-        check_call!(Command::new(APT_MARK_PATH).arg("unhold").args(&names))?;
+        eprintln!("Un-holding: {}", names.join(" "));
+        check_call!(Command::new(APT_MARK_PATH).arg("unhold").arg("-qq").args(&names))?;
         Ok(Self { names })
     }
     /// Add more entries to the list of things to hold when the guard drops
@@ -118,10 +99,10 @@ impl UnholdGuard {
 
 impl Drop for UnholdGuard {
     fn drop(&mut self) {
-        verbose_eprintln!("Re-holding: {}", self.names.join(" "));
+        eprintln!("Re-holding: {}", self.names.join(" "));
         if !Command::new(APT_MARK_PATH)
             .arg("hold")
-            .arg("-qq") // TODO: omit if log-level is appropriate
+            .arg("-qq")
             .args(&self.names)
             .status()
             .expect("run apt-mark again to re-hold packages")
@@ -161,11 +142,11 @@ fn get_nvidia_packages() -> Result<BTreeMap<String, String>, Box<dyn Error>> {
 /// necessary.
 fn do_update(mark_only: bool) -> Result<bool, Box<dyn Error>> {
     if !mark_only {
-        verbose_eprintln!("Updating package list...");
+        eprintln!("Updating package list...");
         check_call!(Command::new(APT_GET_PATH).arg("update"))?;
     }
 
-    verbose_eprintln!("Getting list of eligible packages");
+    eprintln!("Getting list of eligible packages");
     let old_versions = get_nvidia_packages()?;
 
     let mut unhold_guard = UnholdGuard::new(old_versions.keys().cloned().collect())?;
@@ -174,11 +155,11 @@ fn do_update(mark_only: bool) -> Result<bool, Box<dyn Error>> {
         return Ok(false);
     }
 
-    verbose_eprintln!("Updating all packages list...");
-    check_call!(Command::new(APT_GET_PATH).arg("dist-upgrade"))?;
+    eprintln!("Updating all packages list...");
+    check_call!(Command::new(APT_GET_PATH).arg("dist-upgrade").arg("-y"))?;
 
     // Update the list of packages to re-hold and report whether a kernel module reload is needed
-    verbose_eprintln!("Getting updated list of eligible packages");
+    eprintln!("Getting updated list of eligible packages");
     let new_versions = get_nvidia_packages()?;
     unhold_guard.extend(new_versions.keys().cloned());
     Ok(old_versions != new_versions)
@@ -207,17 +188,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cmd = args.next().expect("get argv[0] from std::env::args");
     for arg in args {
         match arg.as_ref() {
-            "-v" => {
-                *(VERBOSE.lock().expect("locked fresh mutex")) = true;
-            },
             "--mark-only" => {
                 mark_only = true;
             },
             "-h" | "--help" | _ => {
-                println!("Usage: {} [-v|-h|--help|--mark-only]\n", cmd);
-                println!("\t-h | --help\tShow this message");
-                println!("\t-v\t\tShow diagnostic output");
-                println!("\t--mark-only\tDon't actually update packages. Just re-hold packages.");
+                println!("Usage: {} [-h|--help|--mark-only]\n", cmd);
+                println!("    -h | --help\t\tShow this message");
+                println!(
+                    "    --mark-only\t\tDon't actually update packages. Just re-hold packages."
+                );
+                println!("\nRequired external dependencies:\n");
+                println!("    - {}", APT_GET_PATH);
+                println!("    - {}", DPKG_QUERY_PATH);
+                println!("    - {} (or {})", MODPROBE_PATH, REBOOT_PATH);
+                println!("    - {} (or {})", RMMOD_PATH, REBOOT_PATH);
                 return Ok(());
             },
         }
