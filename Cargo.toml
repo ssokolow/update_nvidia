@@ -1,7 +1,13 @@
 [package]
-name = "update_nvidia"
-version = "0.1.0"
+authors = ["Stephan Sokolow"]
+categories = ["command-line-utilities"]
+keywords = ["nvidia", "apt", "update", "defer", "ubuntu"]
+description = "Helper to defer nVidia driver updates until restart on APT-based systems"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+name = "update_nvidia"
+repository = "https://github.com/ssokolow/update_nvidia"
+version = "0.1.0"
 
 [dependencies]
 
