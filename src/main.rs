@@ -127,26 +127,17 @@ impl Drop for UnholdGuard {
             .expect("run apt-mark again to re-hold packages")
             .success()
         {
-            panic!(
-                "Failed to re-mark packages as held: {}",
-                self.names.join(" ")
-            );
+            panic!("Failed to re-mark packages as held: {}", self.names.join(" "));
         }
     }
 }
 
 /// Retrieve a map from installed packages with `nvidia` in the name to their version strings
 fn get_nvidia_packages() -> Result<BTreeMap<String, String>, Box<dyn Error>> {
-    let cmd_result = Command::new(DPKG_QUERY_PATH)
-        .arg("--list")
-        .arg("*nvidia*")
-        .output()?;
+    let cmd_result = Command::new(DPKG_QUERY_PATH).arg("--list").arg("*nvidia*").output()?;
 
     if !cmd_result.status.success() {
-        return Err(CalledProcessError {
-            code: cmd_result.status.code(),
-        }
-        .into());
+        return Err(CalledProcessError { code: cmd_result.status.code() }.into());
     }
 
     let mut results = BTreeMap::new();
@@ -199,11 +190,11 @@ fn reload_nvidia() -> Result<(), Box<dyn Error>> {
     match check_call!(Command::new(RMMOD_PATH).arg(NVIDIA_KMOD_NAME)) {
         Ok(_) => {
             check_call!(Command::new(MODPROBE_PATH).arg(NVIDIA_KMOD_NAME))?;
-        }
+        },
         Err(_) => {
             eprintln!("Module reload failed. Triggering reboot...");
             check_call!(Command::new(REBOOT_PATH))?;
-        }
+        },
     }
     Ok(())
 }
@@ -218,17 +209,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         match arg.as_ref() {
             "-v" => {
                 *(VERBOSE.lock().expect("locked fresh mutex")) = true;
-            }
+            },
             "--mark-only" => {
                 mark_only = true;
-            }
+            },
             "-h" | "--help" | _ => {
                 println!("Usage: {} [-v|-h|--help|--mark-only]\n", cmd);
                 println!("\t-h | --help\tShow this message");
                 println!("\t-v\t\tShow diagnostic output");
                 println!("\t--mark-only\tDon't actually update packages. Just re-hold packages.");
                 return Ok(());
-            }
+            },
         }
     }
 
