@@ -17,35 +17,35 @@ use std::process::Command;
 /// Path to use for invoking the `apt-get` Command
 ///
 /// (Hard-coded to an absolute path for security-reasons)
-const APT_GET_PATH: &'static str = "/usr/bin/apt-get";
+const APT_GET_PATH: &str = "/usr/bin/apt-get";
 
 /// Path to use for invoking the `apt-mark` Command
 ///
 /// (Hard-coded to an absolute path for security-reasons)
-const APT_MARK_PATH: &'static str = "/usr/bin/apt-mark";
+const APT_MARK_PATH: &str = "/usr/bin/apt-mark";
 
 /// Path to use for invoking the `dpkg-query` Command
 ///
 /// (Hard-coded to an absolute path for security-reasons)
-const DPKG_QUERY_PATH: &'static str = "/usr/bin/dpkg-query";
+const DPKG_QUERY_PATH: &str = "/usr/bin/dpkg-query";
 
 /// Path to use for invoking the `reboot` Command
 ///
 /// (Hard-coded to an absolute path for security-reasons)
-const REBOOT_PATH: &'static str = "/sbin/reboot";
+const REBOOT_PATH: &str = "/sbin/reboot";
 
 /// Path to use for invoking the `rmmod` Command
 ///
 /// (Hard-coded to an absolute path for security-reasons)
-const RMMOD_PATH: &'static str = "/sbin/rmmod";
+const RMMOD_PATH: &str = "/sbin/rmmod";
 
 /// Path to use for invoking the `modprobe` Command
 ///
 /// (Hard-coded to an absolute path for security-reasons)
-const MODPROBE_PATH: &'static str = "/sbin/modprobe";
+const MODPROBE_PATH: &str = "/sbin/modprobe";
 
 /// Single definition of the kernel module name to load and unload
-const NVIDIA_KMOD_NAME: &'static str = "nvidia";
+const NVIDIA_KMOD_NAME: &str = "nvidia";
 
 /// Workaround for `ExitStatusError` being unstable
 #[derive(Debug)]
@@ -92,7 +92,7 @@ impl UnholdGuard {
         Ok(Self { names })
     }
     /// Add more entries to the list of things to hold when the guard drops
-    pub fn extend<'a>(&mut self, names: impl IntoIterator<Item = String>) {
+    pub fn extend(&mut self, names: impl IntoIterator<Item = String>) {
         self.names.extend(names);
     }
 }
@@ -186,6 +186,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Basic CLI argument parser that doesn't rely on external crates
     let mut args = std::env::args();
     let cmd = args.next().expect("get argv[0] from std::env::args");
+    #[allow(clippy::wildcard_in_or_patterns)] // Make "Help or unrecognized" intent clear
     for arg in args {
         match arg.as_ref() {
             "--mark-only" => {
