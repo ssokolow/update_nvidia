@@ -7,5 +7,5 @@ install: build
     cp update_nvidia.service ~/.profile_repo/files/etc/systemd/system/update_nvidia.service
     sudo cp update_nvidia /usr/local/sbin/update_nvidia
     sudo cp update_nvidia.service /etc/systemd/system/update_nvidia.service
-    sudo systemctl enable update_nvidia.service
     sudo ./update_nvidia --mark-only
+    sudo systemctl enable update_nvidia.service
