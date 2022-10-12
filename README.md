@@ -14,7 +14,8 @@ following:
 1. Use `apt-mark unhold` to enable updates of packages with "nvidia" in their
    name.
 2. Use `apt-get update` and `apt-get dist-upgrade` to apply any pending updates.
-3. Use `apt-mark hold` to prevent your usual update process from updating
+3. Reload the kernel modules in case they got updated.
+4. Use `apt-mark hold` to prevent your usual update process from updating
    packages with "nvidia" in their name during normal operation.
 
 This is handled as part of system startup rather than shutdown for two reasons:
