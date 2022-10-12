@@ -66,4 +66,4 @@ task, but it's optimized for my own use-case, so, if you want to use
 
 For security, it hard-codes all the paths to the APT binaries it uses. You can
 see the paths it expects in its `-h`/`--help` output and, if you need to change
-the, they're just some `const` strings at the top of `src/main.rs`.
+them, they're just some `const` strings at the top of `src/main.rs`.
