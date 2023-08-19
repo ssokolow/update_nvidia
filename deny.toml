@@ -15,3 +15,6 @@ allow = ["MIT", "Apache-2.0"]
 
 [bans]
 wildcards = "deny"
+deny = [
+    { name = "serde_derive", version = ">=1.0.172" }
+]
