@@ -14,5 +14,21 @@ version = "0.1.0"
 [profile.release]
 lto = true
 codegen-units = 1
-opt-level = "s"
-strip = true
+
+# Disable building debug info and strip std debug symbols to speed up linking.
+# Backtraces will still work as long as you don't strip="symbols"/strip=true
+#
+# Source: https://davidlattimore.github.io/working-on-rust-iteration-time.html
+strip="debuginfo"
+
+[profile.dev]
+# Build the project itself with just enough optimization to smooth out the
+# most egregious of the abstractions which are only zero-cost when optimized
+opt-level = 1
+
+# Disable building debug info and strip std debug symbols to speed up linking.
+# Backtraces will still work as long as you don't strip="symbols"/strip=true
+#
+# Source: https://davidlattimore.github.io/working-on-rust-iteration-time.html
+debug = 0
+strip="debuginfo"
